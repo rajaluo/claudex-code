@@ -39,12 +39,15 @@ PUBLISH_NPM=false
 TARGET=""  # e.g. linux-x64, darwin-arm64 (for cross-compile)
 ALL_TARGETS=false
 NPM_PACKAGE_NAME="${NPM_PACKAGE_NAME:-claudex-code}"
+ALLOW_PUBLIC_NPM=false
+REPO_SLUG="${REPO_SLUG:-rajaluo/claudex-code}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version|-v) VERSION="$2"; shift 2 ;;
     --npm)        PUBLISH_NPM=true; shift ;;
     --npm-name)   NPM_PACKAGE_NAME="$2"; shift 2 ;;
+    --allow-public-npm) ALLOW_PUBLIC_NPM=true; shift ;;
     --target)     TARGET="$2"; shift 2 ;;
     --all-targets) ALL_TARGETS=true; shift ;;
     --help|-h)
@@ -53,6 +56,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --version X.Y.Z    Override version (default: from package.json)"
       echo "  --npm               Publish to npm after building"
       echo "  --npm-name <name>   npm package name (default: claudex-code)"
+      echo "  --allow-public-npm  Explicitly acknowledge public npm distribution risk"
       echo "  --target <os-arch>  Cross-compile proxy binary (e.g. linux-x64, darwin-arm64)"
       echo "  --all-targets       Build release for all 4 targets"
       echo ""
@@ -115,6 +119,7 @@ command -v node >/dev/null 2>&1 || die "node not found"
 [[ -f "$ROOT/dist/cli.js" ]] || die "dist/cli.js not found. Run: bash scripts/setup.sh --build first"
 [[ -f "$ROOT/proxy/server.ts" ]] || die "proxy/server.ts not found"
 [[ -f "$ROOT/proxy/config.json" ]] || die "proxy/config.json not found"
+[[ -f "$ROOT/docs/README.md" ]] || die "docs/README.md not found"
 
 ok "All pre-flight checks passed"
 
@@ -394,8 +399,10 @@ LAUNCHER
 make_launcher "claudex" "\$HOME/.claude" "$STAGE/claudex"
 ok "launcher created: claudex (→ ~/.claude)"
 
-# Copy docs README into stage
+# Copy docs into stage
 [[ -f "$ROOT/docs/README.md" ]] && cp "$ROOT/docs/README.md" "$STAGE/README.md"
+[[ -f "$ROOT/NOTICE.md" ]] && cp "$ROOT/NOTICE.md" "$STAGE/NOTICE.md"
+[[ -f "$ROOT/LEGAL.md" ]] && cp "$ROOT/LEGAL.md" "$STAGE/LEGAL.md"
 
 # --------------------------------------------------------------------------- #
 # Generate install.sh
@@ -431,6 +438,8 @@ mkdir -p "$INSTALL_DIR"
 cp "$SCRIPT_DIR/claudex-proxy"  "$INSTALL_DIR/claudex-proxy" && chmod +x "$INSTALL_DIR/claudex-proxy"
 cp "$SCRIPT_DIR/claudex-cli.js" "$INSTALL_DIR/claudex-cli.js"
 [[ -f "$SCRIPT_DIR/README.md" ]] && cp "$SCRIPT_DIR/README.md" "$INSTALL_DIR/README.md"
+[[ -f "$SCRIPT_DIR/NOTICE.md" ]] && cp "$SCRIPT_DIR/NOTICE.md" "$INSTALL_DIR/NOTICE.md"
+[[ -f "$SCRIPT_DIR/LEGAL.md" ]] && cp "$SCRIPT_DIR/LEGAL.md" "$INSTALL_DIR/LEGAL.md"
 
 _init_config() {
   local DIR="${1/\$HOME/$HOME}"
@@ -502,6 +511,10 @@ ok "Created: $RELEASE_DIR/$TARBALL_NAME ($TARBALL_SIZE)"
 if $PUBLISH_NPM; then
   section "npm publish"
 
+  if ! $ALLOW_PUBLIC_NPM; then
+    die "Refusing npm publish without explicit acknowledgment. Re-run with: --allow-public-npm"
+  fi
+
   # Build npm package structure
   NPM_DIR="$RELEASE_DIR/npm-pkg"
   rm -rf "$NPM_DIR"
@@ -509,6 +522,9 @@ if $PUBLISH_NPM; then
 
   cp "$STAGE/claudex-proxy" "$NPM_DIR/bin/"
   cp "$STAGE/claudex-cli.js" "$NPM_DIR/bin/"
+  [[ -f "$STAGE/README.md" ]] && cp "$STAGE/README.md" "$NPM_DIR/README.md"
+  [[ -f "$STAGE/NOTICE.md" ]] && cp "$STAGE/NOTICE.md" "$NPM_DIR/NOTICE.md"
+  [[ -f "$STAGE/LEGAL.md" ]] && cp "$STAGE/LEGAL.md" "$NPM_DIR/LEGAL.md"
 
   # npm launcher wrapper
   cat > "$NPM_DIR/bin/claudex" << 'NPMBIN'
@@ -537,13 +553,16 @@ import json
 pkg = {
     "name": "${NPM_PACKAGE_NAME}",
     "version": "${VERSION}",
-    "description": "Claude Code with multi-model proxy (OpenAI, Gemini, Azure, Bedrock, Codex)",
+    "description": "Community-maintained coding CLI with multi-model proxy routing",
     "bin": {"claudex": "./bin/claudex"},
-    "scripts": {"postinstall": "bash setup-config.sh"},
+    "scripts": {},
     "engines": {"node": ">=18"},
     "os": ["darwin", "linux"],
     "keywords": ["ai", "claude", "code", "llm", "openai", "gemini"],
-    "license": "MIT"
+    "license": "UNLICENSED",
+    "repository": {"type": "git", "url": "git+https://github.com/${REPO_SLUG}.git"},
+    "homepage": "https://github.com/${REPO_SLUG}",
+    "bugs": {"url": "https://github.com/${REPO_SLUG}/issues"}
 }
 with open("${NPM_DIR}/package.json", "w") as f:
     json.dump(pkg, f, indent=2)
@@ -569,7 +588,7 @@ echo -e "  tar -xzf $TARBALL_NAME"
 echo -e "  bash claudex-${VERSION}-${TARGET}/install.sh"
 echo ""
 echo -e "  ${CYAN}# Option 2: one-line remote install (host tarball on GitHub Releases)${RESET}"
-echo -e "  curl -fsSL https://github.com/YOUR_ORG/claudex/releases/latest/download/install.sh | bash"
+echo -e "  curl -fsSL https://github.com/${REPO_SLUG}/releases/latest/download/install.sh | bash"
 echo ""
 echo -e "${BOLD}User requirements:${RESET}"
 echo -e "  - Node.js >= 18 (https://nodejs.org/)"

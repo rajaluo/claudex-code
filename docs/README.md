@@ -1,5 +1,7 @@
 # 模型配置与切换指南
 
+> 法律声明：`claudex` 是社区维护项目，**非官方 Anthropic 产品**，与 Anthropic 无隶属关系。发布与分发前请先阅读仓库根目录的 `LEGAL.md` 与 `NOTICE.md`。
+
 ## 快速开始
 
 安装完成后，用 `claudex` 代替官方 `claude` 命令。其他所有用法完全一致。

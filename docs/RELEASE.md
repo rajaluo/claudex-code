@@ -2,6 +2,14 @@
 
 ## 1) GitHub Releases（二进制）
 
+### 发布前法律检查（必须）
+
+1. 确认上游代码及依赖的许可证允许再分发（尤其是商业分发场景）  
+2. 保留并随发行包分发 `NOTICE.md` 与必要许可证文本  
+3. 在 README 保持“非官方”与商标免责声明，避免品牌混淆  
+4. 不要在发布包中包含密钥、内部地址、敏感配置  
+5. 如需面向外部商用，建议先由法务审阅 `LEGAL.md`
+
 ### 先把改造后的代码上传到 GitHub
 
 ```bash
@@ -86,10 +94,12 @@ npm view claudex-code version
 ```
 
 ```bash
-bash scripts/release.sh --version 1.0.0 --npm
+bash scripts/release.sh --version 1.0.0 --npm --allow-public-npm
 ```
 
 会产出并发布 `claudex-code`，命令名为 `claudex`。
+
+> 脚本默认会拒绝 npm 公网发布，必须显式加 `--allow-public-npm` 才会发布（用于避免误发布导致法律风险）。
 
 用户安装：
 
