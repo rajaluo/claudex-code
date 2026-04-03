@@ -21,4 +21,5 @@ dist/claudex
 # Release artifacts (reproducible from scripts/release.sh)
 release/stage/
 release/*.tar.gz
+release/install.sh
 
