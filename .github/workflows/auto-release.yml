@@ -1,0 +1,48 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build All Targets
+        run: |
+          bash scripts/release.sh --version "latest" --all-targets
+
+      - name: Move vlatest Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f vlatest
+          git push -f origin vlatest
+
+      - name: Publish Latest Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: vlatest
+          name: "Latest Auto Build"
+          body: "Automatically built from the latest commit on the main branch."
+          files: release/*
+          make_latest: "true"
