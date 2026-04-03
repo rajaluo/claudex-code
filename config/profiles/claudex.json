@@ -1,0 +1,22 @@
+{
+  "_comment": "claudex profile — uses ~/.claude (same as official claude CLI, so marketplace skills work). Binary name 'claudex' avoids conflict with official 'claude'.",
+
+  "name": "claudex",
+
+  "binary": {
+    "name": "claudex",
+    "description": "Claude Code + multi-model proxy (shared ~/.claude dir)"
+  },
+
+  "data": {
+    "configDir": "~/.claude"
+  },
+
+  "api": {
+    "baseUrl": "http://localhost:4315",
+    "apiKey": "local-proxy",
+    "model": ""
+  },
+
+  "env": {}
+}

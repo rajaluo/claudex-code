@@ -1,0 +1,23 @@
+{
+  "_comment": "Default profile - copy this file and rename to create new profiles",
+
+  "name": "claudex",
+
+  "binary": {
+    "name": "claudex",
+    "description": "Claude Code with multi-model proxy"
+  },
+
+  "data": {
+    "configDir": "~/.claude"
+  },
+
+  "api": {
+    "baseUrl": "http://localhost:4315",
+    "apiKey": "local-proxy",
+    "model": ""
+  },
+
+  "env": {
+  }
+}

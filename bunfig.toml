@@ -1,0 +1,22 @@
+[build]
+
+[build.alias]
+"bun:bundle" = "./polyfills/bun-bundle.ts"
+"react/compiler-runtime" = "react-compiler-runtime"
+"@ant/computer-use-mcp" = "./stubs/@ant/computer-use-mcp/index.ts"
+"@ant/computer-use-swift" = "./stubs/@ant/computer-use-swift/index.ts"
+"@ant/computer-use-input" = "./stubs/@ant/computer-use-input/index.ts"
+"@ant/claude-for-chrome-mcp" = "./stubs/@ant/claude-for-chrome-mcp/index.ts"
+"@anthropic-ai/foundry-sdk" = "./stubs/@anthropic-ai/foundry-sdk/index.ts"
+"@anthropic-ai/mcpb" = "./stubs/@anthropic-ai/mcpb/index.ts"
+"@anthropic-ai/sandbox-runtime" = "./stubs/@anthropic-ai/sandbox-runtime/index.ts"
+"color-diff-napi" = "./stubs/color-diff-napi/index.ts"
+
+[loader]
+".md" = "text"
+".txt" = "text"
+
+[build.define]
+# Note: dotted keys like MACRO.VERSION cannot be expressed in TOML [build.define].
+# They are passed as --define CLI flags in scripts/setup.sh build_source().
+"process.env.BUILD_TARGET" = "\"external\""

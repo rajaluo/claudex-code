@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Bun temporary build artifacts
+*.bun-build
+
+# Local backups
+*.bak
+
+# Python venv for LiteLLM
+.venv-litellm/
+
+# Build outputs
+dist/cli.js
+dist/myai
+dist/claudex
+
+# Release artifacts (reproducible from scripts/release.sh)
+release/stage/
+release/*.tar.gz
+

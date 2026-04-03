@@ -1,0 +1,28 @@
+{
+  "_comment": "Routes through local multi-model proxy (proxy/server.ts) → OpenAI / Gemini / ...",
+
+  "name": "custom-api",
+
+  "binary": {
+    "name": "claudex",
+    "description": "Claude Code via multi-model proxy"
+  },
+
+  "data": {
+    "configDir": "~/.claude"
+  },
+
+  "api": {
+    "baseUrl": "http://localhost:4315",
+    "apiKey": "local-proxy",
+    "model": ""
+  },
+
+  "env": {
+  },
+
+  "_proxy": {
+    "start": "bun proxy/server.ts",
+    "config": "proxy/config.json"
+  }
+}

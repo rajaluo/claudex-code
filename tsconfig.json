@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "bun:bundle": ["./polyfills/bun-bundle.ts"],
+      "@ant/computer-use-mcp": ["./stubs/@ant/computer-use-mcp/index.ts"],
+      "@ant/computer-use-mcp/*": ["./stubs/@ant/computer-use-mcp/*"],
+      "@ant/computer-use-swift": ["./stubs/@ant/computer-use-swift/index.ts"],
+      "@ant/computer-use-input": ["./stubs/@ant/computer-use-input/index.ts"],
+      "@ant/claude-for-chrome-mcp": ["./stubs/@ant/claude-for-chrome-mcp/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "polyfills/**/*", "stubs/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
