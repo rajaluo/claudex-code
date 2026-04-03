@@ -506,6 +506,65 @@ TARBALL_SIZE=$(du -sh "$RELEASE_DIR/$TARBALL_NAME" | cut -f1)
 ok "Created: $RELEASE_DIR/$TARBALL_NAME ($TARBALL_SIZE)"
 
 # --------------------------------------------------------------------------- #
+# Generate one-line remote installer script
+# --------------------------------------------------------------------------- #
+section "Generating remote installer script"
+
+cat > "$RELEASE_DIR/install.sh" << INSTALLER
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_SLUG="${REPO_SLUG}"
+INPUT_VERSION="\${CLAUDEX_VERSION:-\${1:-latest}}"
+
+_fail() { echo "[install] ERROR: \$*" >&2; exit 1; }
+
+OS=\$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=\$(uname -m)
+case "\$OS" in
+  darwin) OS="darwin" ;;
+  linux)  OS="linux" ;;
+  *) _fail "Unsupported OS: \$OS (supported: darwin, linux)" ;;
+esac
+case "\$ARCH" in
+  arm64|aarch64) ARCH="arm64" ;;
+  x86_64|amd64)  ARCH="x64" ;;
+  *) _fail "Unsupported ARCH: \$ARCH (supported: arm64, x64)" ;;
+esac
+
+if [[ "\$INPUT_VERSION" == "latest" ]]; then
+  TAG=\$(curl -fsSL "https://api.github.com/repos/\$REPO_SLUG/releases/latest" \
+    | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' \
+    | head -n1)
+  [[ -n "\$TAG" ]] || _fail "Failed to resolve latest release tag from GitHub API"
+  VERSION="\${TAG#v}"
+else
+  VERSION="\${INPUT_VERSION#v}"
+fi
+
+TARGET="\${OS}-\${ARCH}"
+PKG_DIR="claudex-\${VERSION}-\${TARGET}"
+PKG_TGZ="\${PKG_DIR}.tar.gz"
+URL="https://github.com/\$REPO_SLUG/releases/download/v\${VERSION}/\${PKG_TGZ}"
+
+TMP_DIR=\$(mktemp -d)
+cleanup() { rm -rf "\$TMP_DIR"; }
+trap cleanup EXIT
+
+echo "[install] Downloading \$URL"
+curl -fL "\$URL" -o "\$TMP_DIR/\$PKG_TGZ" || _fail "Download failed"
+
+echo "[install] Extracting package"
+tar -xzf "\$TMP_DIR/\$PKG_TGZ" -C "\$TMP_DIR" || _fail "Extract failed"
+
+echo "[install] Running bundled installer"
+bash "\$TMP_DIR/\$PKG_DIR/install.sh" "\${@:2}"
+INSTALLER
+
+chmod +x "$RELEASE_DIR/install.sh"
+ok "Created: $RELEASE_DIR/install.sh"
+
+# --------------------------------------------------------------------------- #
 # Optional: npm publish
 # --------------------------------------------------------------------------- #
 if $PUBLISH_NPM; then
@@ -589,6 +648,7 @@ echo -e "  bash claudex-${VERSION}-${TARGET}/install.sh"
 echo ""
 echo -e "  ${CYAN}# Option 2: one-line remote install (host tarball on GitHub Releases)${RESET}"
 echo -e "  curl -fsSL https://github.com/${REPO_SLUG}/releases/latest/download/install.sh | bash"
+echo -e "  (Upload release/install.sh as a release asset named install.sh)"
 echo ""
 echo -e "${BOLD}User requirements:${RESET}"
 echo -e "  - Node.js >= 18 (https://nodejs.org/)"

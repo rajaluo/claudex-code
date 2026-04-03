@@ -6,6 +6,14 @@
 
 安装完成后，用 `claudex` 代替官方 `claude` 命令。其他所有用法完全一致。
 
+### 一键网络安装（GitHub Release）
+
+```bash
+curl -fsSL https://github.com/rajaluo/claudex-code/releases/latest/download/install.sh | bash
+```
+
+安装脚本会自动识别你的系统（darwin/linux + arm64/x64）并下载对应包。
+
 ```bash
 claudex                        # 启动交互模式
 claudex -p "帮我分析这段代码"   # 非交互执行任务

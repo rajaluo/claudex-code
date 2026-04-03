@@ -63,6 +63,7 @@ git push origin v1.0.0
 
 # 创建 release 并上传产物
 gh release create v1.0.0 \
+  release/install.sh \
   release/claudex-1.0.0-darwin-arm64.tar.gz \
   release/claudex-1.0.0-darwin-x64.tar.gz \
   release/claudex-1.0.0-linux-x64.tar.gz \
@@ -78,9 +79,15 @@ tar -xzf claudex-1.0.0-darwin-arm64.tar.gz
 bash claudex-1.0.0-darwin-arm64/install.sh
 ```
 
-## 2) 包管理分发
+一键网络安装（推荐）：
 
-### npm（已接入）
+```bash
+curl -fsSL https://github.com/rajaluo/claudex-code/releases/latest/download/install.sh | bash
+```
+
+## 2) 包管理分发（当前暂停）
+
+### npm（已接入，但当前不对外发布）
 
 第一次发布前准备：
 
@@ -93,11 +100,11 @@ npm view claudex-code version
 # 如果返回 404 表示可用；若已被占用，改 scripts/release.sh 里的包名
 ```
 
+如未来恢复 npm 公网分发，再执行：
+
 ```bash
 bash scripts/release.sh --version 1.0.0 --npm --allow-public-npm
 ```
-
-会产出并发布 `claudex-code`，命令名为 `claudex`。
 
 > 脚本默认会拒绝 npm 公网发布，必须显式加 `--allow-public-npm` 才会发布（用于避免误发布导致法律风险）。
 
