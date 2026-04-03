@@ -38,18 +38,21 @@ VERSION=""
 PUBLISH_NPM=false
 TARGET=""  # e.g. linux-x64, darwin-arm64 (for cross-compile)
 ALL_TARGETS=false
+NPM_PACKAGE_NAME="${NPM_PACKAGE_NAME:-claudex-code}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version|-v) VERSION="$2"; shift 2 ;;
     --npm)        PUBLISH_NPM=true; shift ;;
+    --npm-name)   NPM_PACKAGE_NAME="$2"; shift 2 ;;
     --target)     TARGET="$2"; shift 2 ;;
     --all-targets) ALL_TARGETS=true; shift ;;
     --help|-h)
-      echo "Usage: bash scripts/release.sh [--version X.Y.Z] [--npm] [--target <os-arch>] [--all-targets]"
+      echo "Usage: bash scripts/release.sh [--version X.Y.Z] [--npm] [--npm-name <name>] [--target <os-arch>] [--all-targets]"
       echo ""
       echo "  --version X.Y.Z    Override version (default: from package.json)"
       echo "  --npm               Publish to npm after building"
+      echo "  --npm-name <name>   npm package name (default: claudex-code)"
       echo "  --target <os-arch>  Cross-compile proxy binary (e.g. linux-x64, darwin-arm64)"
       echo "  --all-targets       Build release for all 4 targets"
       echo ""
@@ -532,7 +535,7 @@ NPMBIN
 import json
 
 pkg = {
-    "name": "claudex-code",
+    "name": "${NPM_PACKAGE_NAME}",
     "version": "${VERSION}",
     "description": "Claude Code with multi-model proxy (OpenAI, Gemini, Azure, Bedrock, Codex)",
     "bin": {"claudex": "./bin/claudex"},
