@@ -200,7 +200,8 @@ _cmd_rc() {
 }
 
 _cmd_restart() {
-  pkill -f "${CMD}-proxy\b\|claudex-proxy" 2>/dev/null || true; sleep 1
+  # Kill both compiled proxy and any older source-mode proxy/litellm processes.
+  pkill -f "${CMD}-proxy\b|claudex-proxy|proxy/server.ts|litellm" 2>/dev/null || true; sleep 1
   CLAUDEX_PROVIDER="\${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-}}" CLAUDEX_MODEL="\${CLAUDEX_MODEL:-\${MYAI_MODEL:-}}" \
   nohup "\$MYAI_INSTALL/claudex-proxy" --port "\$PROXY_PORT" > "\$PROXY_LOG" 2>&1 &
   for _i in 1 2 3 4 5 6 7 8; do sleep 1
