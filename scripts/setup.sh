@@ -257,11 +257,22 @@ install_deps() {
 # --------------------------------------------------------------------------- #
 # Build
 # --------------------------------------------------------------------------- #
+# Bun's bunfig.toml [build.alias] is not always applied in CI (e.g. Linux runners).
+# Symlink local stubs into node_modules so bun build resolves the same everywhere.
+ensure_stub_module_links() {
+  mkdir -p "$ROOT/node_modules/@anthropic-ai"
+  ln -sf "$ROOT/stubs/@anthropic-ai/foundry-sdk" "$ROOT/node_modules/@anthropic-ai/foundry-sdk"
+  ln -sf "$ROOT/stubs/@anthropic-ai/mcpb" "$ROOT/node_modules/@anthropic-ai/mcpb"
+  ln -sf "$ROOT/stubs/@anthropic-ai/sandbox-runtime" "$ROOT/node_modules/@anthropic-ai/sandbox-runtime"
+  ln -sf "$ROOT/stubs/color-diff-napi" "$ROOT/node_modules/color-diff-napi"
+}
+
 build_source() {
   section "Building Source → dist/cli.js"
 
   cd "$ROOT"
   mkdir -p "$DIST"
+  ensure_stub_module_links
 
   log "Entry  : $ENTRY"
   log "Output : $DIST/cli.js"
