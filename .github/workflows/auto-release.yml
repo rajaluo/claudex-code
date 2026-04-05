@@ -27,6 +27,10 @@ jobs:
         with:
           node-version: '20'
 
+      # release.sh requires dist/cli.js (not committed); build it in CI
+      - name: Build CLI (dist/cli.js)
+        run: bash scripts/setup.sh --build
+
       - name: Build All Targets
         run: |
           bash scripts/release.sh --version "latest" --all-targets
