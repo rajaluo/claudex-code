@@ -10,7 +10,10 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import {
+  getAPIProvider,
+  isFirstPartyAnthropicBaseUrl,
+} from 'src/utils/model/providers.js'
 import {
   getIsNonInteractiveSession,
   preferThirdPartyAuthentication,
@@ -252,6 +255,16 @@ export function getAnthropicApiKeyWithSource(
   const apiKeyEnv = isRunningOnHomespace()
     ? undefined
     : process.env.ANTHROPIC_API_KEY
+
+  // Proxies and other Anthropic-compatible gateways (e.g. claudex localhost:4315):
+  // use ANTHROPIC_API_KEY from the environment without the console approval list.
+  // Otherwise interactive mode has no key (only --print sets preferThirdPartyAuthentication).
+  if (apiKeyEnv && !isFirstPartyAnthropicBaseUrl()) {
+    return {
+      key: apiKeyEnv,
+      source: 'ANTHROPIC_API_KEY',
+    }
+  }
 
   // Always check for direct environment variable when the user ran claude --print.
   // This is useful for CI, etc.
