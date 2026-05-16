@@ -36,7 +36,7 @@ claudex help                   # 查看管理命令
 | Codex（自定义地址） | `CODEX_API_KEY=sk-...`<br>`CODEX_API_BASE=https://your.api.com/v1` | 公司内部 / 第三方 |
 | Google Gemini | `GEMINI_API_KEY=AI...` | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 | Anthropic 官方 | `ANTHROPIC_API_KEY=sk-ant-...` | [console.anthropic.com](https://console.anthropic.com/) |
-| Azure OpenAI | `AZURE_API_KEY=xxx`<br>`AZURE_OPENAI_ENDPOINT=https://{resource}.openai.azure.com`<br>`AZURE_OPENAI_DEPLOYMENT=gpt-5.4` | Azure Portal |
+| Azure OpenAI | `AZURE_API_KEY=xxx`<br>`AZURE_OPENAI_ENDPOINT=https://{resource}.openai.azure.com`<br>`AZURE_OPENAI_DEPLOYMENT=gpt-5.5` | Azure Portal |
 | AWS Bedrock | `AWS_ACCESS_KEY_ID=xxx`<br>`AWS_SECRET_ACCESS_KEY=xxx`<br>`AWS_REGION=us-east-1` | AWS IAM（EC2/ECS 环境只需 `AWS_REGION`） |
 
 ### 可选：覆盖各厂商 API URL（不设置就走官方）
@@ -74,7 +74,7 @@ claudex switch             # 查看当前设置及所有选项
 
 ```bash
 claudex model                        # 查看当前 model 及所有示例
-claudex model gpt-5.4-mini           # 切换到更快/更省钱的 OpenAI 模型
+claudex model gpt-5.5-mini           # 切换到更快/更省钱的 OpenAI 模型
 claudex model claude-sonnet-4-6      # 切换到 Anthropic Sonnet（较快版）
 claudex model claude-opus-4-6        # 切换到 Anthropic Opus（旗舰版）
 claudex model gemini-3.1-pro-preview # 切换到 Gemini 旗舰
@@ -93,11 +93,11 @@ claudex model reset                  # 恢复 provider 默认模型
 
 | Provider  | 默认模型 | 备注 |
 |-----------|----------|------|
-| openai    | `gpt-5.4` | 旗舰；更快/更省钱用 `gpt-5.4-mini` |
-| codex     | `gpt-5.4` | 兼容 OpenAI API 的自定义接口 |
+| openai    | `gpt-5.5` | 旗舰；更快/更省钱用 `gpt-5.5-mini` |
+| codex     | `gpt-5.5` | 兼容 OpenAI API 的自定义接口 |
 | anthropic | `claude-opus-4-6` | 旗舰；较快/省钱用 `claude-sonnet-4-6` |
 | gemini    | `gemini-3.1-pro-preview` | 旗舰；较快用 `gemini-3.1-flash-lite-preview` |
-| azure     | `gpt-5.4` | 填你在 Azure 创建的**部署名** |
+| azure     | `gpt-5.5` | 填你在 Azure 创建的**部署名** |
 | bedrock   | `anthropic.claude-opus-4-6` | Bedrock 完整 model ID |
 
 ### 永久切换到同 Provider 的其他模型
@@ -106,13 +106,13 @@ claudex model reset                  # 恢复 provider 默认模型
 
 ```bash
 # 写入 ~/.zshrc，永久生效
-echo 'export CLAUDEX_MODEL=gpt-5.4-mini' >> ~/.zshrc && source ~/.zshrc
+echo 'export CLAUDEX_MODEL=gpt-5.5-mini' >> ~/.zshrc && source ~/.zshrc
 claudex restart   # 重启代理让配置生效
 ```
 
 ```bash
 # 常用示例
-export CLAUDEX_MODEL=gpt-5.4-mini           # OpenAI 更快/更省钱
+export CLAUDEX_MODEL=gpt-5.5-mini           # OpenAI 更快/更省钱
 export CLAUDEX_MODEL=claude-sonnet-4-6      # Anthropic 较快版
 export CLAUDEX_MODEL=claude-opus-4-6        # Anthropic 旗舰版
 export CLAUDEX_MODEL=gemini-3.1-pro-preview # Gemini 旗舰
@@ -127,14 +127,14 @@ export CLAUDEX_MODEL=anthropic.claude-opus-4-6      # Bedrock 旗舰
 在模型名前加 `provider/` 前缀，**完全绕过路由规则**，仅当次对话生效：
 
 ```text
-openai/gpt-5.4
-openai/gpt-5.4-mini
+openai/gpt-5.5
+openai/gpt-5.5-mini
 openai/o3
 anthropic/claude-opus-4-6
 anthropic/claude-sonnet-4-6
 gemini/gemini-3.1-pro-preview
 gemini/gemini-3.1-flash-lite-preview
-codex/gpt-5.4
+codex/gpt-5.5
 bedrock/anthropic.claude-opus-4-6
 bedrock/meta.llama3-70b-instruct-v1:0
 azure/my-gpt-deployment
@@ -172,7 +172,7 @@ claudex switch bedrock
 # ~/.zshrc
 export AZURE_API_KEY=xxxxxxxxxxxxxxxx
 export AZURE_OPENAI_ENDPOINT=https://my-resource.openai.azure.com
-export AZURE_OPENAI_DEPLOYMENT=gpt-5.4   # 你在 Azure 创建的部署名
+export AZURE_OPENAI_DEPLOYMENT=gpt-5.5   # 你在 Azure 创建的部署名
 
 claudex switch azure
 ```

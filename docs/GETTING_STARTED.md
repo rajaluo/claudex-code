@@ -58,7 +58,7 @@ claudex switch codex
 同一 provider 内切换模型：
 
 ```bash
-claudex model gpt-5.4-mini
+claudex model gpt-5.5-mini
 claudex model claude-sonnet-4-6
 claudex model gemini-3.1-flash-lite-preview
 claudex model reset
@@ -88,7 +88,7 @@ export ANTHROPIC_API_BASE=https://api.anthropic.com           # 可选覆盖
 # Azure OpenAI
 export AZURE_API_KEY=xxx
 export AZURE_OPENAI_ENDPOINT=https://{resource}.openai.azure.com
-export AZURE_OPENAI_DEPLOYMENT=gpt-5.4
+export AZURE_OPENAI_DEPLOYMENT=gpt-5.5
 export AZURE_OPENAI_API_VERSION=2024-02-01                    # 可选覆盖
 
 # AWS Bedrock

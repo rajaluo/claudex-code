@@ -406,6 +406,7 @@ _doctor() {
   command -v curl >/dev/null 2>&1 && echo "  curl      : ok"               || echo "  curl      : missing"
   echo "  provider  : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-openai}}"
   echo "  model     : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+  echo "  effort    : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
   if curl -sf "http://localhost:\${_PROXY_PORT}/health" > /dev/null 2>&1; then
     echo "  proxy     : running (port \${_PROXY_PORT})"
   else
@@ -534,6 +535,7 @@ case "\${1:-}" in
     echo "[${bin_name}] status"
     echo "  provider  : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-openai}}"
     echo "  model     : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+    echo "  effort    : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
     echo "  port      : \${_PROXY_PORT}"
     curl -sf "http://localhost:\${_PROXY_PORT}/health" > /dev/null 2>&1 \
       && echo "  proxy     : running" || echo "  proxy     : stopped"
@@ -694,13 +696,13 @@ model_list:
   # ── OpenAI ──────────────────────────────────────────────────────────────
   - model_name: "claude-*"        # Claude Code 发的全部 claude-* 走 OpenAI
     litellm_params:
-      model: openai/gpt-5.4
+      model: openai/gpt-5.5
       api_key: os.environ/OPENAI_API_KEY
       api_base: os.environ/OPENAI_API_BASE
 
   - model_name: "gpt-*"
     litellm_params:
-      model: openai/gpt-5.4
+      model: openai/gpt-5.5
       api_key: os.environ/OPENAI_API_KEY
       api_base: os.environ/OPENAI_API_BASE
 
@@ -718,13 +720,13 @@ model_list:
   # CODEX_API_KEY 独立于 OPENAI_API_KEY；CODEX_API_BASE 用于公司自定义接口
   - model_name: "codex-*"
     litellm_params:
-      model: openai/gpt-5.4
+      model: openai/gpt-5.5
       api_key: os.environ/CODEX_API_KEY
       api_base: os.environ/CODEX_API_BASE     # 公司自定义接口，留空则走 api.openai.com
 
   - model_name: "gpt-5*codex*"
     litellm_params:
-      model: openai/gpt-5.4
+      model: openai/gpt-5.5
       api_key: os.environ/CODEX_API_KEY
       api_base: os.environ/CODEX_API_BASE
 
@@ -737,9 +739,9 @@ model_list:
 
   # ── Azure OpenAI ─────────────────────────────────────────────────────────
   # 设置 AZURE_API_KEY 和 AZURE_API_BASE 后取消注释以下条目
-  # - model_name: "azure-gpt-5.4"
+  # - model_name: "azure-gpt-5.5"
   #   litellm_params:
-  #     model: azure/gpt-5.4              # azure/<deployment-name>
+  #     model: azure/gpt-5.5              # azure/<deployment-name>
   #     api_key: os.environ/AZURE_API_KEY
   #     api_base: os.environ/AZURE_API_BASE
   #     api_version: "2024-12-01-preview"
@@ -772,7 +774,7 @@ model_list:
   # ── 兜底：未匹配的请求全走 OpenAI ────────────────────────────────────────
   - model_name: "*"
     litellm_params:
-      model: openai/gpt-5.4
+      model: openai/gpt-5.5
       api_key: os.environ/OPENAI_API_KEY
       api_base: os.environ/OPENAI_API_BASE
 YAML
@@ -928,7 +930,7 @@ do_model() {
     echo -e "      bash scripts/setup.sh model reset  （清除，恢复默认）"
     echo ""
     echo -e "常用示例:"
-    echo "  openai    : gpt-5.4 / gpt-5.4-mini"
+    echo "  openai    : gpt-5.5 / gpt-5.5-mini"
     echo "  anthropic : claude-opus-4-6 / claude-sonnet-4-6"
     echo "  gemini    : gemini-3.1-pro-preview / gemini-3.1-flash-lite-preview"
     echo "  bedrock   : anthropic.claude-opus-4-6"

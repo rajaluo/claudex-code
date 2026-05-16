@@ -54,6 +54,7 @@ interface ProxyConfig {
   providers: Record<string, ProviderConfig>
   routes: Array<{ pattern: string; provider: string }>
   defaultModel: Record<string, string>
+  defaultReasoningEffort?: Record<string, string>
 }
 
 const config: ProxyConfig = configPath
@@ -133,6 +134,14 @@ function resolveModel(requestModel: string, provider: string): string {
   return config.defaultModel?.[provider] ?? stripped
 }
 
+function resolveReasoningEffort(provider: string): string | undefined {
+  return (
+    process.env.CLAUDEX_REASONING_EFFORT ||
+    process.env.MYAI_REASONING_EFFORT ||
+    config.defaultReasoningEffort?.[provider]
+  )
+}
+
 // -------------------------------------------------------------------------- //
 // Anthropic types (subset)
 // -------------------------------------------------------------------------- //
@@ -185,6 +194,7 @@ async function callOpenAICompat(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   overrideModel?: string,
+  provider = 'openai',
 ): Promise<Response> {
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = []
@@ -250,16 +260,18 @@ async function callOpenAICompat(
   }))
 
   const rawModel = overrideModel ?? req.model
-  const model = resolveModel(rawModel, 'openai')
+  const model = resolveModel(rawModel, provider)
+  const reasoningEffort = resolveReasoningEffort(provider)
 
   const completion = await client.chat.completions.create({
     model,
     messages,
     max_tokens: req.max_tokens,
     temperature: req.temperature,
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
     ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
     stream: false,
-  })
+  } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming)
 
   const choice = completion.choices[0]
   const responseContent: ContentBlock[] = []
@@ -306,7 +318,7 @@ async function callOpenAI(req: AnthropicRequest): Promise<Response> {
   const baseURL = process.env.OPENAI_API_BASE || prov?.baseUrl || 'https://api.openai.com/v1'
   const { OpenAI } = await import('openai')
   const client = new OpenAI({ apiKey, baseURL })
-  return callOpenAICompat(req, client)
+  return callOpenAICompat(req, client, undefined, 'openai')
 }
 
 // -------------------------------------------------------------------------- //
@@ -324,7 +336,7 @@ async function callAzure(req: AnthropicRequest): Promise<Response> {
     || prov.deployment
     || process.env.AZURE_OPENAI_DEPLOYMENT
     || config.defaultModel?.azure
-    || 'gpt-5.4'
+    || 'gpt-5.5'
 
   if (!apiKey) throw new Error('Azure API key not set. Set AZURE_API_KEY env var.')
   if (!endpoint) throw new Error('Azure endpoint not set. Set AZURE_OPENAI_ENDPOINT env var (e.g. https://xxx.openai.azure.com).')
@@ -336,7 +348,7 @@ async function callAzure(req: AnthropicRequest): Promise<Response> {
     deployment,
     apiVersion: process.env.AZURE_OPENAI_API_VERSION || prov.apiVersion || '2024-02-01',
   })
-  return callOpenAICompat(req, client, deployment)
+  return callOpenAICompat(req, client, deployment, 'azure')
 }
 
 // -------------------------------------------------------------------------- //
@@ -353,7 +365,7 @@ async function callCodex(req: AnthropicRequest): Promise<Response> {
   const { OpenAI } = await import('openai')
   const client = new OpenAI({ apiKey, baseURL })
   const defaultModel = resolveModel(req.model, 'codex')
-  return callOpenAICompat(req, client, defaultModel)
+  return callOpenAICompat(req, client, defaultModel, 'codex')
 }
 
 // -------------------------------------------------------------------------- //

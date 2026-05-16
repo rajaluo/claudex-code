@@ -36,7 +36,7 @@ Add variables in `~/.zshrc` (or `~/.bashrc`), then run `source ~/.zshrc`:
 | Codex (custom endpoint) | `CODEX_API_KEY=sk-...`<br>`CODEX_API_BASE=https://your.api.com/v1` | Internal / third-party |
 | Google Gemini | `GEMINI_API_KEY=AI...` | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 | Anthropic | `ANTHROPIC_API_KEY=sk-ant-...` | [console.anthropic.com](https://console.anthropic.com/) |
-| Azure OpenAI | `AZURE_API_KEY=xxx`<br>`AZURE_OPENAI_ENDPOINT=https://{resource}.openai.azure.com`<br>`AZURE_OPENAI_DEPLOYMENT=gpt-5.4` | Azure Portal |
+| Azure OpenAI | `AZURE_API_KEY=xxx`<br>`AZURE_OPENAI_ENDPOINT=https://{resource}.openai.azure.com`<br>`AZURE_OPENAI_DEPLOYMENT=gpt-5.5` | Azure Portal |
 | AWS Bedrock | `AWS_ACCESS_KEY_ID=xxx`<br>`AWS_SECRET_ACCESS_KEY=xxx`<br>`AWS_REGION=us-east-1` | AWS IAM (`AWS_REGION` only for role-based runtimes) |
 
 ### Optional: Override Provider API URLs (official defaults if unset)
@@ -74,7 +74,7 @@ Each provider has a default model. To use another model from the same provider:
 
 ```bash
 claudex model
-claudex model gpt-5.4-mini
+claudex model gpt-5.5-mini
 claudex model claude-sonnet-4-6
 claudex model claude-opus-4-6
 claudex model gemini-3.1-pro-preview
@@ -91,24 +91,24 @@ This is persisted to `~/.zshrc`, and proxy auto-restarts.
 
 | Provider  | Default model | Notes |
 |-----------|---------------|-------|
-| openai    | `gpt-5.4` | flagship; use `gpt-5.4-mini` for faster/cheaper |
-| codex     | `gpt-5.4` | OpenAI-compatible custom endpoint |
+| openai    | `gpt-5.5` | flagship; use `gpt-5.5-mini` for faster/cheaper |
+| codex     | `gpt-5.5` | OpenAI-compatible custom endpoint |
 | anthropic | `claude-opus-4-6` | flagship; `claude-sonnet-4-6` for speed/cost |
 | gemini    | `gemini-3.1-pro-preview` | flagship; `gemini-3.1-flash-lite-preview` for speed |
-| azure     | `gpt-5.4` | should match your Azure deployment name |
+| azure     | `gpt-5.5` | should match your Azure deployment name |
 | bedrock   | `anthropic.claude-opus-4-6` | full Bedrock model ID |
 
 ### Permanent Model Override With `CLAUDEX_MODEL`
 
 ```bash
-echo 'export CLAUDEX_MODEL=gpt-5.4-mini' >> ~/.zshrc && source ~/.zshrc
+echo 'export CLAUDEX_MODEL=gpt-5.5-mini' >> ~/.zshrc && source ~/.zshrc
 claudex restart
 ```
 
 Common examples:
 
 ```bash
-export CLAUDEX_MODEL=gpt-5.4-mini
+export CLAUDEX_MODEL=gpt-5.5-mini
 export CLAUDEX_MODEL=claude-sonnet-4-6
 export CLAUDEX_MODEL=claude-opus-4-6
 export CLAUDEX_MODEL=gemini-3.1-pro-preview
@@ -123,14 +123,14 @@ To reset provider default model: `unset CLAUDEX_MODEL` and remove that line from
 Use `provider/model` prefix (bypasses routing rules for that request):
 
 ```text
-openai/gpt-5.4
-openai/gpt-5.4-mini
+openai/gpt-5.5
+openai/gpt-5.5-mini
 openai/o3
 anthropic/claude-opus-4-6
 anthropic/claude-sonnet-4-6
 gemini/gemini-3.1-pro-preview
 gemini/gemini-3.1-flash-lite-preview
-codex/gpt-5.4
+codex/gpt-5.5
 bedrock/anthropic.claude-opus-4-6
 bedrock/meta.llama3-70b-instruct-v1:0
 azure/my-gpt-deployment
@@ -162,7 +162,7 @@ claudex switch bedrock
 ```bash
 export AZURE_API_KEY=xxxxxxxxxxxxxxxx
 export AZURE_OPENAI_ENDPOINT=https://my-resource.openai.azure.com
-export AZURE_OPENAI_DEPLOYMENT=gpt-5.4
+export AZURE_OPENAI_DEPLOYMENT=gpt-5.5
 claudex switch azure
 ```
 
