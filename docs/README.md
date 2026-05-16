@@ -191,6 +191,18 @@ claudex doctor
 claudex restart
 ```
 
+### Temporarily Map `claude` to `claudex`
+
+Some IDE plugins only call the `claude` command. You can enable a local command mapping:
+
+```bash
+claudex alias enable
+claudex alias status
+claudex alias disable
+```
+
+This only switches the `claude` symlink in the same directory as `claudex`. If an official `claude` command already exists there, it is backed up as `claude.claudex-original` and restored by `claudex alias disable`.
+
 Common issues:
 
 | Symptom | Fix |
@@ -208,7 +220,7 @@ Common issues:
 `claudex` uses the same data directory as official Claude Code (`~/.claude`), so:
 
 - Marketplace skills work out of the box.
-- `CLAUDE.md`, project memory, and history are shared.
+- Agents, skills, hooks, MCP, `CLAUDE.md`, project memory, and history are shared.
 - Official `claude` and custom `claudex` can coexist (different command names).
 
 ---

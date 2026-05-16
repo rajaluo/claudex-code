@@ -229,7 +229,137 @@ _cmd_doctor() {
   echo ""
 }
 
+_cmd_alias_dir() {
+  cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd
+}
+
+_cmd_alias_link() {
+  echo "\$(_cmd_alias_dir)/claude"
+}
+
+_cmd_alias_self() {
+  echo "\$(_cmd_alias_dir)/\${_CMD}"
+}
+
+_cmd_alias_status() {
+  local link self backup path_claude existing
+  link="\$(_cmd_alias_link)"
+  self="\$(_cmd_alias_self)"
+  backup="\${link}.claudex-original"
+  path_claude="\$(command -v claude 2>/dev/null || true)"
+
+  echo ""
+  echo "  claude alias status"
+  echo "  alias path : \$link"
+  echo "  target     : \$self"
+  [[ -e "\$backup" || -L "\$backup" ]] && echo "  backup     : \$backup"
+  if [[ -L "\$link" ]]; then
+    existing="\$(readlink "\$link")"
+    if [[ "\$existing" == "\$self" ]]; then
+      echo "  state      : enabled"
+    else
+      echo "  state      : occupied by symlink -> \$existing"
+    fi
+  elif [[ -e "\$link" ]]; then
+    echo "  state      : occupied by non-symlink file"
+  else
+    echo "  state      : disabled"
+  fi
+  echo "  PATH claude: \${path_claude:-not found}"
+  echo ""
+}
+
+_cmd_alias_enable() {
+  local link self backup existing
+  link="\$(_cmd_alias_link)"
+  self="\$(_cmd_alias_self)"
+  backup="\${link}.claudex-original"
+
+  if [[ -L "\$link" ]]; then
+    existing="\$(readlink "\$link")"
+    [[ "\$existing" == "\$self" ]] && {
+      echo ""
+      echo "  Already enabled: claude -> \${_CMD}"
+      echo ""
+      return 0
+    }
+  fi
+
+  if [[ -e "\$link" || -L "\$link" ]]; then
+    if [[ -e "\$backup" || -L "\$backup" ]]; then
+      echo "  Refusing to overwrite \$link because backup already exists: \$backup" >&2
+      return 1
+    fi
+    mv "\$link" "\$backup"
+    echo ""
+    echo "  Saved existing claude command to: \$backup"
+  fi
+
+  ln -sfn "\$self" "\$link"
+  echo ""
+  echo "  Enabled: claude -> \${_CMD}"
+  echo "  Current PATH claude: \$(command -v claude 2>/dev/null || echo 'not found')"
+  echo ""
+}
+
+_cmd_alias_disable() {
+  local link self backup existing
+  link="\$(_cmd_alias_link)"
+  self="\$(_cmd_alias_self)"
+  backup="\${link}.claudex-original"
+
+  if [[ ! -e "\$link" && ! -L "\$link" ]]; then
+    if [[ -e "\$backup" || -L "\$backup" ]]; then
+      mv "\$backup" "\$link"
+      echo ""
+      echo "  Restored original claude command: \$link"
+      echo ""
+      return 0
+    fi
+    echo ""
+    echo "  Already disabled: \$link does not exist"
+    echo ""
+    return 0
+  fi
+
+  if [[ ! -L "\$link" ]]; then
+    echo "  Refusing to remove non-symlink file: \$link" >&2
+    return 1
+  fi
+
+  existing="\$(readlink "\$link")"
+  if [[ "\$existing" != "\$self" ]]; then
+    echo "  Refusing to remove symlink not managed by \${_CMD}: \$link -> \$existing" >&2
+    return 1
+  fi
+
+  rm -f "\$link"
+  if [[ -e "\$backup" || -L "\$backup" ]]; then
+    mv "\$backup" "\$link"
+    echo ""
+    echo "  Restored original claude command: \$link"
+  else
+    echo ""
+    echo "  Disabled: removed \$link"
+  fi
+  echo "  Current PATH claude: \$(command -v claude 2>/dev/null || echo 'not found')"
+  echo ""
+}
+
 case "\${1:-}" in
+  alias)
+    case "\${2:-status}" in
+      enable|on) _cmd_alias_enable ;;
+      disable|off) _cmd_alias_disable ;;
+      status|"") _cmd_alias_status ;;
+      *)
+        echo "  Usage: ${CMD} alias enable|disable|status" >&2
+        exit 1
+        ;;
+    esac
+    exit \$?
+    ;;
+
   switch)
     _PROV="\${2:-}"
     _VALID="openai codex anthropic gemini azure bedrock"
@@ -349,6 +479,9 @@ case "\${1:-}" in
     echo "  ${CMD} restart                Restart proxy"
     echo "  ${CMD} logs                   Proxy logs (debug)"
     echo "  ${CMD} doctor                 Basic diagnostics"
+    echo "  ${CMD} alias enable           Make claude resolve to ${CMD}"
+    echo "  ${CMD} alias disable          Restore PATH lookup to official claude"
+    echo "  ${CMD} alias status           Show claude mapping status"
     echo ""
     echo "  Providers: openai | codex | anthropic | gemini | azure | bedrock"
     echo ""

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Claude Code built from source",
   "bin": {
-    "claude": "./dist/cli.js"
+    "claudex": "./dist/claudex"
   },
   "engines": {
     "node": ">=18.0.0",

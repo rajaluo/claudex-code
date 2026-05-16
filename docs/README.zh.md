@@ -200,6 +200,18 @@ claudex doctor          # 一键诊断环境与代理状态
 claudex restart         # 手动重启代理
 ```
 
+### 将 `claude` 临时映射到 `claudex`
+
+如果某些 IDE 插件只会调用 `claude` 命令，可以开启命令映射：
+
+```bash
+claudex alias enable    # 创建 claude -> claudex 映射
+claudex alias status    # 查看当前映射状态
+claudex alias disable   # 移除映射，恢复使用官方 claude
+```
+
+该命令只会在 `claudex` 所在目录切换 `claude` 符号链接；如果那里已经有官方 `claude`，会先备份为 `claude.claudex-original`，`disable` 时自动恢复。
+
 **常见问题：**
 
 | 现象 | 解决 |
@@ -217,7 +229,7 @@ claudex restart         # 手动重启代理
 `claudex` 使用与官方 `claude` 相同的配置目录 `~/.claude`，因此：
 
 - **Marketplace 安装的 Skills 完全兼容**，无需重新安装
-- **CLAUDE.md、项目记忆、会话历史**与官方共享
+- **Agents、Skills、Hooks、MCP、CLAUDE.md、项目记忆、会话历史**与官方共享
 - 官方 `claude` 和 `claudex` 可以同时安装，互不干扰（命令名不同）
 
 ---

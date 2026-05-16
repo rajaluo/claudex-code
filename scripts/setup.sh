@@ -414,7 +414,122 @@ _doctor() {
   echo "  log file  : \${_PROXY_LOG}"
 }
 
+_alias_dir() {
+  cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd
+}
+
+_alias_link() {
+  echo "\$(_alias_dir)/claude"
+}
+
+_alias_self() {
+  echo "\$(_alias_dir)/${bin_name}"
+}
+
+_alias_status() {
+  local _link _self _backup _path_claude _existing
+  _link="\$(_alias_link)"
+  _self="\$(_alias_self)"
+  _backup="\${_link}.claudex-original"
+  _path_claude="\$(command -v claude 2>/dev/null || true)"
+
+  echo "[${bin_name}] claude alias status"
+  echo "  alias path : \$_link"
+  echo "  target     : \$_self"
+  [[ -e "\$_backup" || -L "\$_backup" ]] && echo "  backup     : \$_backup"
+  if [[ -L "\$_link" ]]; then
+    _existing="\$(readlink "\$_link")"
+    if [[ "\$_existing" == "\$_self" ]]; then
+      echo "  state      : enabled"
+    else
+      echo "  state      : occupied by symlink -> \$_existing"
+    fi
+  elif [[ -e "\$_link" ]]; then
+    echo "  state      : occupied by non-symlink file"
+  else
+    echo "  state      : disabled"
+  fi
+  echo "  PATH claude: \${_path_claude:-not found}"
+}
+
+_alias_enable() {
+  local _link _self _backup _existing
+  _link="\$(_alias_link)"
+  _self="\$(_alias_self)"
+  _backup="\${_link}.claudex-original"
+
+  if [[ -L "\$_link" ]]; then
+    _existing="\$(readlink "\$_link")"
+    [[ "\$_existing" == "\$_self" ]] && {
+      echo "[${bin_name}] Already enabled: claude -> ${bin_name}"
+      return 0
+    }
+  fi
+
+  if [[ -e "\$_link" || -L "\$_link" ]]; then
+    if [[ -e "\$_backup" || -L "\$_backup" ]]; then
+      echo "[${bin_name}] Refusing to overwrite \$_link because backup already exists: \$_backup" >&2
+      return 1
+    fi
+    mv "\$_link" "\$_backup"
+    echo "[${bin_name}] Saved existing claude command to: \$_backup"
+  fi
+
+  ln -sfn "\$_self" "\$_link"
+  echo "[${bin_name}] Enabled: claude -> ${bin_name}"
+  echo "[${bin_name}] Current PATH claude: \$(command -v claude 2>/dev/null || echo 'not found')"
+}
+
+_alias_disable() {
+  local _link _self _backup _existing
+  _link="\$(_alias_link)"
+  _self="\$(_alias_self)"
+  _backup="\${_link}.claudex-original"
+
+  if [[ ! -e "\$_link" && ! -L "\$_link" ]]; then
+    if [[ -e "\$_backup" || -L "\$_backup" ]]; then
+      mv "\$_backup" "\$_link"
+      echo "[${bin_name}] Restored original claude command: \$_link"
+      return 0
+    fi
+    echo "[${bin_name}] Already disabled: \$_link does not exist"
+    return 0
+  fi
+
+  if [[ ! -L "\$_link" ]]; then
+    echo "[${bin_name}] Refusing to remove non-symlink file: \$_link" >&2
+    return 1
+  fi
+
+  _existing="\$(readlink "\$_link")"
+  if [[ "\$_existing" != "\$_self" ]]; then
+    echo "[${bin_name}] Refusing to remove symlink not managed by ${bin_name}: \$_link -> \$_existing" >&2
+    return 1
+  fi
+
+  rm -f "\$_link"
+  if [[ -e "\$_backup" || -L "\$_backup" ]]; then
+    mv "\$_backup" "\$_link"
+    echo "[${bin_name}] Restored original claude command: \$_link"
+  else
+    echo "[${bin_name}] Disabled: removed \$_link"
+  fi
+  echo "[${bin_name}] Current PATH claude: \$(command -v claude 2>/dev/null || echo 'not found')"
+}
+
 case "\${1:-}" in
+  alias)
+    case "\${2:-status}" in
+      enable|on) _alias_enable ;;
+      disable|off) _alias_disable ;;
+      status|"") _alias_status ;;
+      *)
+        echo "Usage: ${bin_name} alias enable|disable|status" >&2
+        exit 1
+        ;;
+    esac
+    exit \$?
+    ;;
   status)
     echo "[${bin_name}] status"
     echo "  provider  : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-openai}}"
@@ -443,6 +558,7 @@ case "\${1:-}" in
     echo "${bin_name} logs     # show proxy logs"
     echo "${bin_name} doctor   # diagnostics"
     echo "${bin_name} restart  # restart proxy"
+    echo "${bin_name} alias enable|disable|status  # map claude command to ${bin_name}"
     ;;
 esac
 
