@@ -210,6 +210,28 @@ _cmd_restart() {
   echo "  proxy failed to start. Run: ${CMD} logs" >&2; return 1
 }
 
+_cmd_effective_provider() {
+  echo "\${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-codex}}"
+}
+
+_cmd_default_model_for_provider() {
+  case "\$1" in
+    openai|codex|azure) echo "gpt-5.5" ;;
+    gemini) echo "gemini-3.1-pro-preview" ;;
+    anthropic) echo "claude-opus-4-6" ;;
+    bedrock) echo "anthropic.claude-opus-4-6" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+_cmd_effective_model() {
+  if [[ -n "\${CLAUDEX_MODEL:-\${MYAI_MODEL:-}}" ]]; then
+    echo "\${CLAUDEX_MODEL:-\${MYAI_MODEL:-}}"
+  else
+    echo "\$(_cmd_default_model_for_provider "\$(_cmd_effective_provider)") (provider default)"
+  fi
+}
+
 _cmd_doctor() {
   echo ""
   echo "  Doctor checks"
@@ -217,8 +239,8 @@ _cmd_doctor() {
   command -v curl >/dev/null 2>&1 && echo "  curl      : ok" || echo "  curl      : missing"
   [[ -x "\$MYAI_INSTALL/claudex-proxy" ]] && echo "  proxy bin  : ok (\$MYAI_INSTALL/claudex-proxy)" || echo "  proxy bin  : missing"
   [[ -f "\$MYAI_INSTALL/claudex-cli.js" ]] && echo "  cli file   : ok (\$MYAI_INSTALL/claudex-cli.js)" || echo "  cli file   : missing"
-  echo "  provider   : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-(default: openai)}}"
-  echo "  model      : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+  echo "  provider   : \$(_cmd_effective_provider)"
+  echo "  model      : \$(_cmd_effective_model)"
   echo "  effort     : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
   echo "  data dir   : \${_DATA_DIR}"
   if curl -sf "http://localhost:\${PROXY_PORT}/health" > /dev/null 2>&1; then
@@ -439,8 +461,8 @@ case "\${1:-}" in
   status)
     echo ""
     echo "  Command  : ${CMD}"
-    echo "  Provider : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-(default: openai)}}"
-    echo "  Model    : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+    echo "  Provider : \$(_cmd_effective_provider)"
+    echo "  Model    : \$(_cmd_effective_model)"
     echo "  Effort   : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
     echo "  Port     : \$PROXY_PORT"
     curl -sf "http://localhost:\${PROXY_PORT}/health" > /dev/null 2>&1 \

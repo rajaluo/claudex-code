@@ -399,13 +399,35 @@ _restart_proxy() {
   _start_proxy
 }
 
+_effective_provider() {
+  echo "\${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-codex}}"
+}
+
+_default_model_for_provider() {
+  case "\$1" in
+    openai|codex|azure) echo "gpt-5.5" ;;
+    gemini) echo "gemini-3.1-pro-preview" ;;
+    anthropic) echo "claude-opus-4-6" ;;
+    bedrock) echo "anthropic.claude-opus-4-6" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+_effective_model() {
+  if [[ -n "\${CLAUDEX_MODEL:-\${MYAI_MODEL:-}}" ]]; then
+    echo "\${CLAUDEX_MODEL:-\${MYAI_MODEL:-}}"
+  else
+    echo "\$(_default_model_for_provider "\$(_effective_provider)") (provider default)"
+  fi
+}
+
 _doctor() {
   echo "[${bin_name}] doctor"
   command -v node >/dev/null 2>&1 && echo "  node      : ok (\$(node -v))" || echo "  node      : missing"
   command -v bun  >/dev/null 2>&1 && echo "  bun       : ok (\$(bun -v))"  || echo "  bun       : missing"
   command -v curl >/dev/null 2>&1 && echo "  curl      : ok"               || echo "  curl      : missing"
-  echo "  provider  : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-openai}}"
-  echo "  model     : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+  echo "  provider  : \$(_effective_provider)"
+  echo "  model     : \$(_effective_model)"
   echo "  effort    : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
   if curl -sf "http://localhost:\${_PROXY_PORT}/health" > /dev/null 2>&1; then
     echo "  proxy     : running (port \${_PROXY_PORT})"
@@ -533,8 +555,8 @@ case "\${1:-}" in
     ;;
   status)
     echo "[${bin_name}] status"
-    echo "  provider  : \${CLAUDEX_PROVIDER:-\${MYAI_PROVIDER:-openai}}"
-    echo "  model     : \${CLAUDEX_MODEL:-\${MYAI_MODEL:-(provider default)}}"
+    echo "  provider  : \$(_effective_provider)"
+    echo "  model     : \$(_effective_model)"
     echo "  effort    : \${CLAUDEX_REASONING_EFFORT:-\${MYAI_REASONING_EFFORT:-high}}"
     echo "  port      : \${_PROXY_PORT}"
     curl -sf "http://localhost:\${_PROXY_PORT}/health" > /dev/null 2>&1 \

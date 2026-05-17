@@ -61,6 +61,8 @@ const config: ProxyConfig = configPath
   ? JSON.parse(readFileSync(configPath, 'utf8'))
   : (defaultConfig as unknown as ProxyConfig)
 const PORT = portOverride ?? config.port ?? 4315
+const OPENAI_CHAT_COMPLETIONS_MAX_TOOLS = 128
+const textEncoder = new TextEncoder()
 
 // Resolve API key: config file takes precedence, falls back to env var
 function resolveKey(provider: string): string {
@@ -142,6 +144,56 @@ function resolveReasoningEffort(provider: string): string | undefined {
   )
 }
 
+function normalizeToolSchema(schema: unknown): Record<string, unknown> {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    return { type: 'object', properties: {} }
+  }
+
+  const normalized: Record<string, unknown> = { ...(schema as Record<string, unknown>) }
+
+  if (
+    normalized.type === 'object' ||
+    normalized.properties !== undefined ||
+    normalized.required !== undefined
+  ) {
+    normalized.type = 'object'
+    if (
+      !normalized.properties ||
+      typeof normalized.properties !== 'object' ||
+      Array.isArray(normalized.properties)
+    ) {
+      normalized.properties = {}
+    }
+    if (normalized.required !== undefined && !Array.isArray(normalized.required)) {
+      delete normalized.required
+    }
+  }
+
+  return normalized
+}
+
+function buildOpenAITools(
+  tools: AnthropicTool[] | undefined,
+): OpenAI.Chat.ChatCompletionTool[] | undefined {
+  if (!tools?.length) return undefined
+
+  if (tools.length > OPENAI_CHAT_COMPLETIONS_MAX_TOOLS) {
+    console.warn(
+      `[proxy] Tool count ${tools.length} exceeds OpenAI-compatible limit ` +
+      `${OPENAI_CHAT_COMPLETIONS_MAX_TOOLS}; truncating.`,
+    )
+  }
+
+  return tools.slice(0, OPENAI_CHAT_COMPLETIONS_MAX_TOOLS).map(t => ({
+    type: 'function' as const,
+    function: {
+      name: t.name,
+      description: t.description ?? '',
+      parameters: normalizeToolSchema(t.input_schema),
+    },
+  }))
+}
+
 // -------------------------------------------------------------------------- //
 // Anthropic types (subset)
 // -------------------------------------------------------------------------- //
@@ -166,6 +218,12 @@ interface AnthropicRequest {
 interface SystemBlock { type: 'text'; text: string }
 interface AnthropicTool { name: string; description?: string; input_schema: unknown }
 
+interface OpenAIToolCallBuffer {
+  id: string
+  name: string
+  arguments: string
+}
+
 // -------------------------------------------------------------------------- //
 // Helpers: content block utilities
 // -------------------------------------------------------------------------- //
@@ -182,6 +240,188 @@ function systemToText(system?: string | SystemBlock[]): string {
   if (!system) return ''
   if (typeof system === 'string') return system
   return system.filter(b => b.type === 'text').map(b => b.text).join('\n')
+}
+
+function sseEncode(event: string, data: unknown): Uint8Array {
+  return textEncoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+}
+
+function enqueueSse(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  event: string,
+  data: unknown,
+): void {
+  controller.enqueue(sseEncode(event, data))
+}
+
+function makeUsage(inputTokens = 0, outputTokens = 0) {
+  return {
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+  }
+}
+
+async function callOpenAICompatStream(
+  req: AnthropicRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
+  model: string,
+  provider: string,
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  tools: OpenAI.Chat.ChatCompletionTool[] | undefined,
+): Promise<Response> {
+  const reasoningEffort = resolveReasoningEffort(provider)
+  const startedAt = Date.now()
+
+  const upstream = await client.chat.completions.create({
+    model,
+    messages,
+    max_tokens: req.max_tokens,
+    temperature: req.temperature,
+    ...(reasoningEffort && !tools?.length ? { reasoning_effort: reasoningEffort } : {}),
+    ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
+    stream: true,
+    stream_options: { include_usage: true },
+  } as OpenAI.Chat.ChatCompletionCreateParamsStreaming)
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const messageId = `msg_${Date.now().toString(36)}`
+      let textBlockStarted = false
+      let nextBlockIndex = 0
+      let stopReason = 'end_turn'
+      let inputTokens = 0
+      let outputTokens = 0
+      const toolCalls = new Map<number, OpenAIToolCallBuffer>()
+
+      enqueueSse(controller, 'message_start', {
+        type: 'message_start',
+        message: {
+          id: messageId,
+          type: 'message',
+          role: 'assistant',
+          model,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: makeUsage(),
+        },
+      })
+
+      try {
+        for await (const chunk of upstream) {
+          if (chunk.usage) {
+            inputTokens = chunk.usage.prompt_tokens ?? inputTokens
+            outputTokens = chunk.usage.completion_tokens ?? outputTokens
+          }
+
+          const choice = chunk.choices?.[0]
+          if (!choice) continue
+
+          if (choice.finish_reason === 'tool_calls') stopReason = 'tool_use'
+          else if (choice.finish_reason === 'length') stopReason = 'max_tokens'
+          else if (choice.finish_reason) stopReason = 'end_turn'
+
+          const delta = choice.delta
+          const text = delta?.content
+          if (typeof text === 'string' && text.length > 0) {
+            if (!textBlockStarted) {
+              enqueueSse(controller, 'content_block_start', {
+                type: 'content_block_start',
+                index: nextBlockIndex,
+                content_block: { type: 'text', text: '' },
+              })
+              textBlockStarted = true
+            }
+
+            enqueueSse(controller, 'content_block_delta', {
+              type: 'content_block_delta',
+              index: nextBlockIndex,
+              delta: { type: 'text_delta', text },
+            })
+          }
+
+          for (const toolCall of delta?.tool_calls ?? []) {
+            const index = toolCall.index ?? 0
+            const existing = toolCalls.get(index) ?? {
+              id: toolCall.id ?? `toolu_${index}_${Date.now().toString(36)}`,
+              name: '',
+              arguments: '',
+            }
+            if (toolCall.id) existing.id = toolCall.id
+            if (toolCall.function?.name) existing.name = toolCall.function.name
+            if (toolCall.function?.arguments) {
+              existing.arguments += toolCall.function.arguments
+            }
+            toolCalls.set(index, existing)
+          }
+        }
+
+        if (textBlockStarted) {
+          enqueueSse(controller, 'content_block_stop', {
+            type: 'content_block_stop',
+            index: nextBlockIndex,
+          })
+          nextBlockIndex += 1
+        }
+
+        for (const [, toolCall] of [...toolCalls.entries()].sort(([a], [b]) => a - b)) {
+          enqueueSse(controller, 'content_block_start', {
+            type: 'content_block_start',
+            index: nextBlockIndex,
+            content_block: {
+              type: 'tool_use',
+              id: toolCall.id,
+              name: toolCall.name,
+              input: {},
+            },
+          })
+          enqueueSse(controller, 'content_block_delta', {
+            type: 'content_block_delta',
+            index: nextBlockIndex,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: toolCall.arguments || '{}',
+            },
+          })
+          enqueueSse(controller, 'content_block_stop', {
+            type: 'content_block_stop',
+            index: nextBlockIndex,
+          })
+          nextBlockIndex += 1
+        }
+
+        if (toolCalls.size > 0) stopReason = 'tool_use'
+
+        enqueueSse(controller, 'message_delta', {
+          type: 'message_delta',
+          delta: { stop_reason: stopReason, stop_sequence: null },
+          usage: makeUsage(inputTokens, outputTokens),
+        })
+        enqueueSse(controller, 'message_stop', { type: 'message_stop' })
+        console.log(`[proxy] stream completed in ${Date.now() - startedAt}ms model=${model}`)
+        controller.close()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.error('[proxy] Stream error:', message)
+        enqueueSse(controller, 'error', {
+          type: 'error',
+          error: { type: 'proxy_error', message },
+        })
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  })
 }
 
 // -------------------------------------------------------------------------- //
@@ -254,21 +494,26 @@ async function callOpenAICompat(
     }
   }
 
-  const tools: OpenAI.Chat.ChatCompletionTool[] | undefined = req.tools?.map(t => ({
-    type: 'function' as const,
-    function: { name: t.name, description: t.description ?? '', parameters: t.input_schema as Record<string, unknown> },
-  }))
+  const tools = buildOpenAITools(req.tools)
 
   const rawModel = overrideModel ?? req.model
   const model = resolveModel(rawModel, provider)
   const reasoningEffort = resolveReasoningEffort(provider)
+  if (req.stream) {
+    try {
+      return await callOpenAICompatStream(req, client, model, provider, messages, tools)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[proxy] Streaming failed, falling back to non-streaming: ${msg}`)
+    }
+  }
 
   const completion = await client.chat.completions.create({
     model,
     messages,
     max_tokens: req.max_tokens,
     temperature: req.temperature,
-    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    ...(reasoningEffort && !tools?.length ? { reasoning_effort: reasoningEffort } : {}),
     ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
     stream: false,
   } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming)
@@ -685,11 +930,26 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         sendError(res, 400, `Unknown provider: ${provider}`); return
     }
 
-    const responseBody = await providerResp.text()
+    const contentType = providerResp.headers.get('content-type') ?? 'application/json'
     res.writeHead(providerResp.status, {
-      'Content-Type': 'application/json',
+      'Content-Type': contentType,
       'Access-Control-Allow-Origin': '*',
+      ...(contentType.includes('text/event-stream') ? {
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      } : {}),
     })
+
+    if (contentType.includes('text/event-stream') && providerResp.body) {
+      for await (const chunk of providerResp.body) {
+        res.write(Buffer.from(chunk))
+      }
+      res.end()
+      return
+    }
+
+    const responseBody = await providerResp.text()
     res.end(responseBody)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
